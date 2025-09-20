@@ -19,9 +19,9 @@ from common.loss import BPRLoss, EmbLoss, L2Loss
 from utils.utils import build_sim, compute_normalized_laplacian
 
 
-class FREEDOM(GeneralRecommender):
+class TEST(GeneralRecommender):
     def __init__(self, config, dataset):
-        super(FREEDOM, self).__init__(config, dataset)
+        super(TEST, self).__init__(config, dataset)
 
         self.embedding_dim = config['embedding_size']
         self.feat_embed_dim = config['feat_embed_dim']
@@ -54,6 +54,7 @@ class FREEDOM(GeneralRecommender):
         dataset_path = os.path.abspath(config['data_path'] + config['dataset'])
         mm_adj_file = os.path.join(dataset_path, 'mm_adj_freedomdsp_{}_{}.pt'.format(self.knn_k, int(10*self.mm_image_weight)))
 
+
         if self.v_feat is not None:
             self.image_embedding = nn.Embedding.from_pretrained(self.v_feat, freeze=False)
             self.image_trs = nn.Linear(self.v_feat.shape[1], self.feat_embed_dim)
@@ -61,10 +62,13 @@ class FREEDOM(GeneralRecommender):
             self.text_embedding = nn.Embedding.from_pretrained(self.t_feat, freeze=False)
             self.text_trs = nn.Linear(self.t_feat.shape[1], self.feat_embed_dim)
 
+        assert self.v_feat is not None, 'Text feature is not supported'
+        assert self.t_feat is not None, 'Image feature is not supported'
+
         if os.path.exists(mm_adj_file):
             self.mm_adj = torch.load(mm_adj_file)
         else:
-            if self.v_feat is not None:
+            if self.v_feat is not None: 
                 indices, image_adj = self.get_knn_adj_mat(self.image_embedding.weight.detach())
                 self.mm_adj = image_adj
             if self.t_feat is not None:

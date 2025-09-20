@@ -1,0 +1,60 @@
+# 固定不动（沿用你现有）
+embedding_size: 64
+n_ui_layers: [4]
+n_layers: 1
+learning_rate_scheduler: [0.96, 50]
+lambda_coeff: 0.9
+reg_weight: [1e-5]
+learning_rate: 0.001
+cl_loss: 0.01
+temperature: 0.2
+image_knn_k: [20]
+text_knn_k: [15]
+dropout_rate: [0.1]
+
+# 基础扩散（沿用你已有搜索）
+use_diffusion_mvp: true
+diff_beta: [0.2, 0.4]
+diff_only_down: [true, false]
+
+# —— 新增：DSPDenoiser
+dsp_mode: ['fft_mask', 'wavelet']     # 先不测 'none'，确保比较有意义
+fft_keep_ratio: 0.5                   # 固定（S档不扩）
+wavelet_thr: 0.05                     # 仅在 wavelet 有效，其他模式会被忽略
+
+# —— 新增：NoiseRecipe
+noise_recipe_on: [true, false]
+nr_topk_fake: 5                        # S档固定
+nr_drop_hi: 0.10
+nr_drop_lo: 0.02
+
+# —— 新增：LossScheduler（开启但不扩）
+loss_sched_on: true
+epochs: 200
+beta_min: 0.05
+beta_max: 0.30
+beta_warmup_ep: 10
+beta_hold_ep: 20
+beta_decay_ep: 60
+use_cosine_decay: true
+w_rank: 1.0
+w_cl: 1.0
+w_edge: [1.0, 0.5]                     # 轻度扩一个维度
+w_spec: 0.0
+w_tv: 0.0
+
+# —— 稳定器（开启但不扩）
+use_softR_ema: true
+softR_ema_tau: 0.2
+renorm_softR: true
+
+# —— 你已验证稳定的打分/门控参数
+diff_temp: 0.6
+diff_gamma: 1.2
+diff_z_thres: 0.5
+diff_stopgrad: true
+
+# 网格键（16组 = 2×2×2×2）
+hyper_parameters:
+  ["n_ui_layers","image_knn_k","text_knn_k","reg_weight","dropout_rate",
+   "diff_beta","diff_only_down","dsp_mode","noise_recipe_on","w_edge"]

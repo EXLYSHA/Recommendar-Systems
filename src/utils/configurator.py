@@ -128,6 +128,12 @@ class Config(object):
         else:
             return None
 
+    def get(self, key, default=None):
+        """Dict-like getter for Config to support `config.get(key, default)` usage."""
+        if not isinstance(key, str):
+            raise TypeError("index must be a str.")
+        return self.final_config_dict[key] if key in self.final_config_dict else default
+
     def __contains__(self, key):
         if not isinstance(key, str):
             raise TypeError("index must be a str.")

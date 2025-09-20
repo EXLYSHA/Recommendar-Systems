@@ -1,0 +1,23 @@
+embedding_size: 64
+n_ui_layers: [1]
+
+# simple fusion weights for id/img/txt branches
+id_weight: 0.2
+img_weight: 0.4
+txt_weight: 0.4
+
+reg_weight: [1e-05, 1e-04]
+learning_rate: 0.001
+
+hyper_parameters: ["n_ui_layers", "reg_weight"]
+
+# enable stronger modality signal for CLIP; still fair (same model)
+use_branch_norm: False          # let magnitude carry signal
+normalize_id_branch: False
+agree_gate_enable: True         # agreement-gated fusion (cosine(img,txt))
+agree_alpha: 8.0                # sharper gate
+agree_beta: 0.0                 # gate bias
+agree_gamma: 1.5                # downscale id more when modalities agree
+
+use_item_knn: True              # add 1-step item-item propagation from modality KNN
+item_knn_k: 10

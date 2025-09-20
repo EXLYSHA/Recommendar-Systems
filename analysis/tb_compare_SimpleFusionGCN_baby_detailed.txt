@@ -1,0 +1,64 @@
+== loss/total ==
+  CLIP: n=155 start=33.160543 mid=7.594429 end=2.347810 mean=10.432954 min=2.263018 max=38.716187
+  RAW: n=146 start=33.140771 mid=7.909720 end=2.494787 mean=10.769990 min=2.452981 max=38.699375
+  diff_end(CLIP-RAW)=-0.146977
+== opt/lr ==
+  CLIP: n=155 start=0.001000 mid=0.001000 end=0.001000 mean=0.001000 min=0.001000 max=0.001000
+  RAW: n=146 start=0.001000 mid=0.001000 end=0.001000 mean=0.001000 min=0.001000 max=0.001000
+  diff_end(CLIP-RAW)=0.000000
+== model/w/id_weight ==
+  CLIP: n=155 start=0.500000 mid=0.500000 end=0.500000 mean=0.500000 min=0.500000 max=0.500000
+  RAW: n=146 start=0.500000 mid=0.500000 end=0.500000 mean=0.500000 min=0.500000 max=0.500000
+  diff_end(CLIP-RAW)=0.000000
+== model/w/img_weight ==
+  CLIP: n=155 start=0.250000 mid=0.250000 end=0.250000 mean=0.250000 min=0.250000 max=0.250000
+  RAW: n=146 start=0.250000 mid=0.250000 end=0.250000 mean=0.250000 min=0.250000 max=0.250000
+  diff_end(CLIP-RAW)=0.000000
+== model/w/txt_weight ==
+  CLIP: n=155 start=0.250000 mid=0.250000 end=0.250000 mean=0.250000 min=0.250000 max=0.250000
+  RAW: n=146 start=0.250000 mid=0.250000 end=0.250000 mean=0.250000 min=0.250000 max=0.250000
+  diff_end(CLIP-RAW)=0.000000
+== model/norm/id ==
+  CLIP: n=155 start=1.000000 mid=1.000000 end=1.000000 mean=1.000000 min=1.000000 max=1.000000
+  RAW: n=146 start=1.000000 mid=1.000000 end=1.000000 mean=1.000000 min=1.000000 max=1.000000
+  diff_end(CLIP-RAW)=0.000000
+== model/norm/img ==
+  CLIP: n=155 start=1.000000 mid=1.000000 end=1.000000 mean=1.000000 min=1.000000 max=1.000000
+  RAW: n=146 start=1.000000 mid=1.000000 end=1.000000 mean=1.000000 min=1.000000 max=1.000000
+  diff_end(CLIP-RAW)=0.000000
+== model/norm/txt ==
+  CLIP: n=155 start=1.000000 mid=1.000000 end=1.000000 mean=1.000000 min=1.000000 max=1.000000
+  RAW: n=146 start=1.000000 mid=1.000000 end=1.000000 mean=1.000000 min=1.000000 max=1.000000
+  diff_end(CLIP-RAW)=0.000000
+== grad_norm/user_embedding ==
+  CLIP: n=155 start=0.002953 mid=0.004122 end=0.002852 mean=0.003821 min=0.002041 max=0.004520
+  RAW: n=146 start=0.002942 mid=0.004137 end=0.002874 mean=0.003824 min=0.002046 max=0.004514
+  diff_end(CLIP-RAW)=-0.000022
+== grad_norm/item_id_embedding ==
+  CLIP: n=155 start=0.004642 mid=0.004363 end=0.002315 mean=0.004471 min=0.002269 max=0.006946
+  RAW: n=146 start=0.004587 mid=0.004448 end=0.002390 mean=0.004497 min=0.002366 max=0.006763
+  diff_end(CLIP-RAW)=-0.000075
+== grad_norm/image_trs ==
+  CLIP: n=155 start=0.001414 mid=0.004381 end=0.002660 mean=0.004111 min=0.000148 max=0.006547
+  RAW: n=146 start=0.000875 mid=0.002881 end=0.001558 mean=0.002700 min=0.000059 max=0.003855
+  diff_end(CLIP-RAW)=0.001103
+== grad_norm/text_trs ==
+  CLIP: n=155 start=0.001376 mid=0.003388 end=0.002073 mean=0.003212 min=0.000131 max=0.005026
+  RAW: n=146 start=0.000422 mid=0.002535 end=0.001660 mean=0.002406 min=0.000105 max=0.003474
+  diff_end(CLIP-RAW)=0.000413
+== param_norm/user_embedding ==
+  CLIP: n=155 start=97.522687 mid=595.231055 end=852.936792 mean=562.176511 min=34.081642 max=858.329651
+  RAW: n=146 start=98.061112 mid=580.151147 end=831.915332 mean=546.531302 min=34.703938 max=837.601257
+  diff_end(CLIP-RAW)=21.021460
+== param_norm/item_id_embedding ==
+  CLIP: n=155 start=15.522385 mid=42.047172 end=54.074163 mean=39.903098 min=13.805971 max=54.359177
+  RAW: n=146 start=15.535775 mid=41.364660 end=52.601511 mean=39.179598 min=13.915122 max=52.886684
+  diff_end(CLIP-RAW)=1.472652
+== param_norm/image_trs ==
+  CLIP: n=310 start=3.284774 mid=7.833042 end=10.118178 mean=9.340417 min=0.089405 max=25.150293
+  RAW: n=292 start=4.331325 mid=27.473133 end=24.015664 mean=21.500050 min=0.083057 max=59.740665
+  diff_end(CLIP-RAW)=-13.897485
+== param_norm/text_trs ==
+  CLIP: n=310 start=3.343505 mid=7.468061 end=9.649117 mean=8.894680 min=0.112065 max=23.900911
+  RAW: n=292 start=2.985803 mid=7.484639 end=6.254086 mean=6.035692 min=0.176680 max=15.338849
+  diff_end(CLIP-RAW)=3.395031

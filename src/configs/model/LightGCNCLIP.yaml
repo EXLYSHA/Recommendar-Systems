@@ -1,6 +1,5 @@
 embedding_size: 64
-is_multimodal_model: False
+is_multimodal_model: True
 n_layers: [4]
 reg_weight: [1e-02]
 hyper_parameters: ["n_layers", "reg_weight"]
-

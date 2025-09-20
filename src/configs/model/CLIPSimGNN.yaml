@@ -1,0 +1,30 @@
+embedding_size: 64
+feat_embed_dim: 64
+
+# training
+epochs: 300
+stopping_step: 20
+eval_step: 1
+
+# graph layers
+n_ui_layers: 2
+n_mm_layers: [1]
+
+# item-item graph from fused features
+knn_k: 10
+mm_image_weight: 0.5
+mutual_knn: True
+
+# cosine scoring
+temperature: [0.06]
+id_branch_weight: [0.15]
+
+# regularization and anchor
+reg_weight: [1e-05]
+anchor_weight: [0.05]
+
+# optional anchor feature files (CLIP rn)
+anchor_vision_feature_file: 'image_feat_rn.npy'
+anchor_text_feature_file: 'text_feat_rn.npy'
+
+hyper_parameters: ["n_mm_layers", "temperature", "id_branch_weight", "reg_weight", "anchor_weight"]

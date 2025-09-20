@@ -1,0 +1,68 @@
+== loss/total ==
+  CLIP: n=80 start=44.0216 mid=16.9873 end=7.5164 mean=24.1641 min=7.3674 max=44.9509
+  RAW: n=77 start=43.9925 mid=17.7118 end=7.5145 mean=24.3260 min=7.3862 max=44.8724
+  diff_end(CLIP-RAW)=0.0019
+== model/align/img_txt_items ==
+  CLIP: n=80 start=0.9999 mid=0.9993 end=0.9955 mean=0.9987 min=0.9952 max=0.9999
+  RAW: n=77 start=0.9993 mid=0.9992 end=0.9964 mean=0.9966 min=0.9780 max=0.9994
+  diff_end(CLIP-RAW)=-0.0009
+== model/align/side_content_items ==
+  CLIP: n=80 start=0.9312 mid=0.6642 end=0.7194 mean=0.7904 min=0.6569 max=0.9821
+  RAW: n=77 start=0.9393 mid=0.6660 end=0.7318 mean=0.7993 min=0.6568 max=0.9857
+  diff_end(CLIP-RAW)=-0.0123
+== model/gate_v_mean ==
+  CLIP: n=80 start=0.9779 mid=0.9965 end=0.9866 mean=0.9872 min=0.9754 max=0.9966
+  RAW: n=77 start=0.9998 mid=1.0000 end=1.0000 mean=0.9999 min=0.9990 max=1.0000
+  diff_end(CLIP-RAW)=-0.0134
+== model/gate_t_mean ==
+  CLIP: n=80 start=0.9830 mid=0.9990 end=0.9986 mean=0.9960 min=0.9776 max=0.9992
+  RAW: n=77 start=0.5939 mid=0.9932 end=0.9909 mean=0.8488 min=0.5899 max=0.9941
+  diff_end(CLIP-RAW)=0.0077
+== model/gate_f_mean ==
+  CLIP: n=80 start=0.0744 mid=0.9051 end=0.9258 mean=0.5819 min=0.0410 max=0.9259
+  RAW: n=77 start=0.0511 mid=0.9129 end=0.9312 mean=0.5701 min=0.0277 max=0.9321
+  diff_end(CLIP-RAW)=-0.0054
+== model/pref_img_mean ==
+  CLIP: n=80 start=0.5252 mid=0.8754 end=0.8634 mean=0.7526 min=0.5157 max=0.8779
+  RAW: n=77 start=0.5094 mid=0.8271 end=0.8252 mean=0.7007 min=0.5056 max=0.8351
+  diff_end(CLIP-RAW)=0.0383
+== model/pref_txt_mean ==
+  CLIP: n=80 start=0.5121 mid=0.8575 end=0.8538 mean=0.7185 min=0.4915 max=0.8628
+  RAW: n=77 start=0.5169 mid=0.8487 end=0.8477 mean=0.7240 min=0.5151 max=0.8547
+  diff_end(CLIP-RAW)=0.0061
+== model/pref_fus_mean ==
+  CLIP: n=80 start=0.4956 mid=0.9286 end=0.9416 mean=0.7579 min=0.4839 max=0.9419
+  RAW: n=77 start=0.4947 mid=0.9188 end=0.9396 mean=0.7505 min=0.4868 max=0.9397
+  diff_end(CLIP-RAW)=0.0020
+== model/att_v_entropy ==
+  CLIP: n=80 start=4.1580 mid=2.5690 end=1.8008 mean=2.9598 min=1.7949 max=4.1582
+  RAW: n=77 start=4.1581 mid=2.4385 end=1.5714 mean=2.8749 min=1.5588 max=4.1582
+  diff_end(CLIP-RAW)=0.2294
+== model/att_t_entropy ==
+  CLIP: n=80 start=4.1582 mid=2.5828 end=1.9337 mean=3.0128 min=1.9258 max=4.1585
+  RAW: n=77 start=4.1585 mid=2.2769 end=2.0352 mean=2.9650 min=1.9137 max=4.1586
+  diff_end(CLIP-RAW)=-0.1015
+== grad_norm/image_trs ==
+  CLIP: n=80 start=0.0000 mid=0.0000 end=0.0000 mean=0.0000 min=0.0000 max=0.0003
+  RAW: n=77 start=0.0002 mid=0.0000 end=0.0000 mean=0.0001 min=0.0000 max=0.0002
+  diff_end(CLIP-RAW)=0.0000
+== grad_norm/text_trs ==
+  CLIP: n=80 start=0.0000 mid=0.0000 end=0.0000 mean=0.0000 min=0.0000 max=0.0001
+  RAW: n=77 start=0.0008 mid=0.0002 end=0.0001 mean=0.0005 min=0.0001 max=0.0020
+  diff_end(CLIP-RAW)=-0.0001
+== grad_norm/gate_f ==
+  CLIP: n=80 start=0.0001 mid=0.0001 end=0.0001 mean=0.0001 min=0.0001 max=0.0003
+  RAW: n=77 start=0.0003 mid=0.0002 end=0.0001 mean=0.0002 min=0.0001 max=0.0005
+  diff_end(CLIP-RAW)=-0.0000
+== grad_norm/gate_image_prefer ==
+  CLIP: n=80 start=0.0000 mid=0.0000 end=0.0000 mean=0.0000 min=0.0000 max=0.0000
+  RAW: n=77 start=0.0000 mid=0.0000 end=0.0000 mean=0.0000 min=0.0000 max=0.0000
+  diff_end(CLIP-RAW)=-0.0000
+== grad_norm/query_v ==
+  CLIP: n=80 start=0.0000 mid=0.0001 end=0.0002 mean=0.0001 min=0.0000 max=0.0002
+  RAW: n=77 start=0.0000 mid=0.0001 end=0.0001 mean=0.0001 min=0.0000 max=0.0001
+  diff_end(CLIP-RAW)=0.0000
+== grad_norm/query_t ==
+  CLIP: n=80 start=0.0000 mid=0.0001 end=0.0002 mean=0.0001 min=0.0000 max=0.0002
+  RAW: n=77 start=0.0000 mid=0.0001 end=0.0002 mean=0.0001 min=0.0000 max=0.0002
+  diff_end(CLIP-RAW)=0.0000

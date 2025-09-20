@@ -1,0 +1,23 @@
+embedding_size: 64
+n_layers: [1, 2]
+reg_weight: [1e-05, 1e-04]
+
+# simple modality fusion branch
+fusion_mode: concat           # concat | avg
+use_branch_norm: False        # keep magnitude signal
+res_alpha: 0.2               # initial residual weight (learnable scalar)
+
+# safety gate to avoid hurting warm items
+use_degree_gate: True
+gate_type: log_inv           # 1/(1+log(1+deg))
+
+# interaction-only item-item smoothing for the modality branch
+use_item_inter_smooth: True
+item_inter_k: 20
+item_inter_beta: 0.1         # small smoothing weight
+
+learning_rate: 0.001
+
+# keep search minimal (not for over-tuning)
+hyper_parameters: ["n_layers", "reg_weight"]
+

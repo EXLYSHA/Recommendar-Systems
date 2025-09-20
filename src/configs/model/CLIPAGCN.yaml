@@ -1,0 +1,28 @@
+embedding_size: 64
+feat_embed_dim: 64
+
+# graph layers
+n_ui_layers: [2]
+n_mm_layers: [1]
+
+# item-item graph from fused CLIP features
+knn_k: 10
+mm_image_weight: 0.5   # alpha in fusion: img vs text
+
+# losses and scales
+anchor_weight: [0.1, 0.2]
+mm_scale: [0.8, 1.2]
+reg_weight: [0.0, 1e-05, 1e-04]
+ui_scale: [0.5, 1.0]
+
+# CLIP bias controls
+use_anchor_for_graph: True      # build item graph from anchor (e.g., CLIP rn) features
+use_anchor_for_loss: True       # anchor i_rep to anchor fused features
+mutual_knn: True                # use mutual kNN pruning for cleaner graph
+freeze_mm_encoders: True        # freeze modality encoders to reduce raw adaptation
+
+# anchor feature file names (under dataset path)
+anchor_vision_feature_file: 'image_feat_raw.npy'
+anchor_text_feature_file: 'text_feat_raw.npy'
+
+hyper_parameters: ["n_ui_layers", "n_mm_layers", "anchor_weight", "mm_scale", "reg_weight", "ui_scale"]

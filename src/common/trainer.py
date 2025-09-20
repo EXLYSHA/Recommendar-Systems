@@ -108,6 +108,18 @@ class Trainer(AbstractTrainer):
         self.alpha2 = config['alpha2']
         self.beta = config['beta']
 
+        # Optional TensorBoard
+        self.tb_enabled = bool(self.config.get('tensorboard', False))
+        self.tb_log_dir = self.config.get('tb_log_dir', None)
+        self.tb_writer = None
+        if self.tb_enabled:
+            try:
+                from torch.utils.tensorboard import SummaryWriter  # noqa: F401
+            except Exception as e:
+                self.logger.warning(f"TensorBoard unavailable ({e}); disabling TB logging.")
+                self.tb_enabled = False
+        self._last_grad_groups = {}
+
     def _build_optimizer(self):
         r"""Init the Optimizer
 
@@ -147,6 +159,21 @@ class Trainer(AbstractTrainer):
         loss_func = loss_func or self.model.calculate_loss
         total_loss = None
         loss_batches = []
+        # collect gradient norms per module group if TB enabled
+        grad_groups = {}
+
+        def _group_name(n):
+            prefixes = [
+                'image_trs', 'text_trs', 'query_v', 'query_t', 'gate_v', 'gate_t', 'gate_f',
+                'gate_image_prefer', 'gate_text_prefer', 'gate_fusion_prefer',
+                'user_embedding', 'item_id_embedding', 'image_embedding', 'text_embedding',
+                'image_complex_weight', 'text_complex_weight', 'fusion_complex_weight'
+            ]
+            for p in prefixes:
+                if n.startswith(p):
+                    return p
+            return n.split('.')[0]
+
         for batch_idx, interaction in enumerate(train_data):
             self.optimizer.zero_grad()
             second_inter = interaction.clone()
@@ -183,7 +210,16 @@ class Trainer(AbstractTrainer):
                 second_loss.backward()
             else:
                 loss.backward()
-                
+            
+            # collect grads before step
+            if self.tb_enabled:
+                with torch.no_grad():
+                    for name, p in self.model.named_parameters():
+                        if p.grad is not None:
+                            gnorm = torch.norm(p.grad.detach()).item()
+                            group = _group_name(name)
+                            grad_groups.setdefault(group, []).append(gnorm)
+
             if self.clip_grad_norm:
                 clip_grad_norm_(self.model.parameters(), **self.clip_grad_norm)
             self.optimizer.step()
@@ -191,6 +227,9 @@ class Trainer(AbstractTrainer):
             # for test
             #if batch_idx == 0:
             #    break
+        # save averaged grad norms for this epoch
+        if self.tb_enabled:
+            self._last_grad_groups = {k: float(sum(v) / max(len(v), 1)) for k, v in grad_groups.items()}
         return total_loss, loss_batches
 
     def _valid_epoch(self, valid_data):
@@ -234,9 +273,23 @@ class Trainer(AbstractTrainer):
         Returns:
              (float, dict): best valid score and best valid result. If valid_data is None, it returns (-1, None)
         """
+        # init TB writer lazily
+        if self.tb_enabled and self.tb_writer is None:
+            from torch.utils.tensorboard import SummaryWriter
+            run_name = f"{self.config['model']}_{self.config['dataset']}_{get_local_time()}"
+            base_dir = self.tb_log_dir or os.path.join('log', 'tensorboard')
+            full_dir = os.path.join('src', base_dir) if not os.path.isabs(base_dir) else base_dir
+            os.makedirs(full_dir, exist_ok=True)
+            self.tb_writer = SummaryWriter(log_dir=os.path.join(full_dir, run_name))
+
         for epoch_idx in range(self.start_epoch, self.epochs):
             # train
             training_start_time = time()
+            # expose current epoch to model for scheduling if needed
+            try:
+                setattr(self.model, 'cur_epoch', epoch_idx)
+            except Exception:
+                pass
             self.model.pre_epoch_processing()
             train_loss, _ = self._train_epoch(train_data, epoch_idx)
             if torch.is_tensor(train_loss):
@@ -255,6 +308,40 @@ class Trainer(AbstractTrainer):
                 self.logger.info(train_loss_output)
                 if post_info is not None:
                     self.logger.info(post_info)
+
+            # per-epoch TensorBoard logging
+            if self.tb_enabled and self.tb_writer is not None:
+                # losses
+                if isinstance(train_loss, tuple):
+                    total = float(sum(train_loss))
+                    self.tb_writer.add_scalar('loss/total', total, epoch_idx)
+                    for i, l in enumerate(train_loss):
+                        self.tb_writer.add_scalar(f'loss/part_{i+1}', float(l), epoch_idx)
+                else:
+                    self.tb_writer.add_scalar('loss/total', float(train_loss), epoch_idx)
+                # learning rate
+                try:
+                    self.tb_writer.add_scalar('opt/lr', self.optimizer.param_groups[0]['lr'], epoch_idx)
+                except Exception:
+                    pass
+                # gradient norms per module group (averaged over epoch)
+                for gk, gv in self._last_grad_groups.items():
+                    self.tb_writer.add_scalar(f'grad_norm/{gk}', gv, epoch_idx)
+                # parameter norms quick view (top-level)
+                with torch.no_grad():
+                    for name, p in self.model.named_parameters():
+                        if p.requires_grad and p.data is not None:
+                            self.tb_writer.add_scalar(f'param_norm/{name.split(".")[0]}', torch.norm(p.data).item(), epoch_idx)
+                # model diagnostics if provided
+                if hasattr(self.model, 'tb_diagnostics'):
+                    try:
+                        diag = self.model.tb_diagnostics()
+                        if isinstance(diag, dict):
+                            for k, v in diag.items():
+                                if isinstance(v, (int, float)):
+                                    self.tb_writer.add_scalar(f'model/{k}', float(v), epoch_idx)
+                    except Exception as e:
+                        self.logger.warning(f"tb_diagnostics failed: {e}")
 
             # eval: To ensure the test result is the best model under validation data, set self.eval_step == 1
             if (epoch_idx + 1) % self.eval_step == 0:
@@ -286,6 +373,13 @@ class Trainer(AbstractTrainer):
                     if verbose:
                         self.logger.info(stop_output)
                     break
+        # close TB writer if open
+        if self.tb_writer is not None:
+            try:
+                self.tb_writer.flush()
+                self.tb_writer.close()
+            except Exception:
+                pass
         return self.best_valid_score, self.best_valid_result, self.best_test_upon_valid
 
 
@@ -329,4 +423,3 @@ class Trainer(AbstractTrainer):
             plt.show()
         if save_path:
             plt.savefig(save_path)
-

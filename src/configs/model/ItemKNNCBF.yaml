@@ -2,6 +2,6 @@
 knn_k: [10]
 shrink: [10]
 req_training: False
-epochs: 1
+epochs: 150
 hyper_parameters: ['shrink', 'knn_k']
 

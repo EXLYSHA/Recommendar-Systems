@@ -9,8 +9,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from models.common.abstract_recommender import GeneralRecommender
-from models.common.loss import BPRLoss, EmbLoss, L2Loss
+from common.abstract_recommender import GeneralRecommender
+from common.loss import BPRLoss, EmbLoss, L2Loss
 
 class LayerGCN(GeneralRecommender):
     def __init__(self, config, dataset):
@@ -97,7 +97,9 @@ class LayerGCN(GeneralRecommender):
                              [1] * inter_M.nnz))
         data_dict.update(dict(zip(zip(inter_M_t.row + self.n_users, inter_M_t.col),
                                   [1] * inter_M_t.nnz)))
-        A._update(data_dict)
+        # A._update(data_dict)
+        for (row, col), value in data_dict.items():
+            A[row, col] = value
         # norm adj matrix
         sumArr = (A > 0).sum(axis=1)
         # add epsilon to avoid Devide by zero Warning

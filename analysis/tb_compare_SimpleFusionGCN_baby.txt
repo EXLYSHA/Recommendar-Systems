@@ -1,0 +1,22 @@
+== loss/total ==
+  CLIP: n=155 start=33.1605 mid=7.5944 end=2.3478 mean=10.4330 min=2.2630 max=38.7162
+  RAW: n=146 start=33.1408 mid=7.9097 end=2.4948 mean=10.7700 min=2.4530 max=38.6994
+  diff_end(CLIP-RAW)=-0.146977
+== norm/id ==
+  CLIP: (missing)
+  RAW: (missing)
+== norm/img ==
+  CLIP: (missing)
+  RAW: (missing)
+== norm/txt ==
+  CLIP: (missing)
+  RAW: (missing)
+== w/id_weight ==
+  CLIP: (missing)
+  RAW: (missing)
+== w/img_weight ==
+  CLIP: (missing)
+  RAW: (missing)
+== w/txt_weight ==
+  CLIP: (missing)
+  RAW: (missing)

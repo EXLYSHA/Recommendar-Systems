@@ -1,0 +1,68 @@
+== loss/total ==
+  CLIP: n=77 start=44.0576 mid=17.4679 end=7.6313 delta=-36.4263 mean=24.5982 min=7.4837 max=45.0357
+  RAW: n=74 start=44.0501 mid=18.1252 end=7.8725 delta=-36.1776 mean=25.1243 min=7.6978 max=45.0207
+  diff_end(CLIP-RAW)=-0.2412
+== model/align/img_txt_items ==
+  CLIP: n=77 start=0.9999 mid=0.9996 end=0.9846 delta=-0.0153 mean=0.9972 min=0.9842 max=1.0000
+  RAW: n=74 start=0.9994 mid=0.9997 end=0.9982 delta=-0.0012 mean=0.9980 min=0.9866 max=0.9997
+  diff_end(CLIP-RAW)=-0.0136
+== model/align/side_content_items ==
+  CLIP: n=77 start=0.9354 mid=0.6802 end=0.7276 delta=-0.2078 mean=0.8052 min=0.6788 max=0.9838
+  RAW: n=74 start=0.9415 mid=0.6743 end=0.7207 delta=-0.2208 mean=0.8055 min=0.6732 max=0.9863
+  diff_end(CLIP-RAW)=0.0068
+== model/gate_v_mean ==
+  CLIP: n=77 start=0.9915 mid=0.9996 end=0.9607 delta=-0.0307 mean=0.9924 min=0.9592 max=0.9999
+  RAW: n=74 start=1.0000 mid=1.0000 end=1.0000 delta=0.0000 mean=1.0000 min=1.0000 max=1.0000
+  diff_end(CLIP-RAW)=-0.0393
+== model/gate_t_mean ==
+  CLIP: n=77 start=0.9965 mid=0.9994 end=0.9961 delta=-0.0004 mean=0.9987 min=0.9841 max=0.9999
+  RAW: n=74 start=0.7096 mid=0.9953 end=0.9951 delta=0.2855 mean=0.8883 min=0.5424 max=0.9960
+  diff_end(CLIP-RAW)=0.0010
+== model/gate_f_mean ==
+  CLIP: n=77 start=0.0943 mid=0.9784 end=0.9838 delta=0.8894 mean=0.6031 min=0.0151 max=0.9838
+  RAW: n=74 start=0.0903 mid=0.9724 end=0.9799 delta=0.8896 mean=0.5868 min=0.0137 max=0.9801
+  diff_end(CLIP-RAW)=0.0039
+== model/pref_img_mean ==
+  CLIP: n=77 start=0.5373 mid=0.8601 end=0.8681 delta=0.3308 mean=0.7509 min=0.5169 max=0.8706
+  RAW: n=74 start=0.5255 mid=0.7911 end=0.8224 delta=0.2969 mean=0.6877 min=0.5127 max=0.8226
+  diff_end(CLIP-RAW)=0.0456
+== model/pref_txt_mean ==
+  CLIP: n=77 start=0.5249 mid=0.8226 end=0.8578 delta=0.3330 mean=0.7107 min=0.5059 max=0.8580
+  RAW: n=74 start=0.5324 mid=0.8489 end=0.8680 delta=0.3356 mean=0.7349 min=0.5163 max=0.8701
+  diff_end(CLIP-RAW)=-0.0102
+== model/pref_fus_mean ==
+  CLIP: n=77 start=0.4988 mid=0.9214 end=0.9418 delta=0.4430 mean=0.7518 min=0.4855 max=0.9418
+  RAW: n=74 start=0.4959 mid=0.9154 end=0.9420 delta=0.4461 mean=0.7447 min=0.4892 max=0.9422
+  diff_end(CLIP-RAW)=-0.0002
+== model/att_v_entropy ==
+  CLIP: n=77 start=4.1575 mid=2.0687 end=1.6438 delta=-2.5136 mean=2.7839 min=1.5529 max=4.1584
+  RAW: n=74 start=4.1575 mid=2.0057 end=1.6518 delta=-2.5057 mean=2.8183 min=1.6292 max=4.1584
+  diff_end(CLIP-RAW)=-0.0080
+== model/att_t_entropy ==
+  CLIP: n=77 start=4.1573 mid=1.7922 end=1.9838 delta=-2.1735 mean=2.8481 min=1.6493 max=4.1585
+  RAW: n=74 start=4.1573 mid=1.9593 end=1.7436 delta=-2.4137 mean=2.8423 min=1.6866 max=4.1586
+  diff_end(CLIP-RAW)=0.2402
+== grad_norm/image_trs ==
+  CLIP: n=77 start=0.0001 mid=0.0000 end=0.0000 delta=-0.0001 mean=0.0000 min=0.0000 max=0.0003
+  RAW: n=74 start=0.0002 mid=0.0000 end=0.0000 delta=-0.0002 mean=0.0001 min=0.0000 max=0.0004
+  diff_end(CLIP-RAW)=0.0000
+== grad_norm/text_trs ==
+  CLIP: n=77 start=0.0000 mid=0.0000 end=0.0000 delta=-0.0000 mean=0.0000 min=0.0000 max=0.0002
+  RAW: n=74 start=0.0011 mid=0.0001 end=0.0000 delta=-0.0010 mean=0.0005 min=0.0000 max=0.0022
+  diff_end(CLIP-RAW)=-0.0000
+== grad_norm/gate_f ==
+  CLIP: n=77 start=0.0002 mid=0.0001 end=0.0001 delta=-0.0001 mean=0.0001 min=0.0000 max=0.0005
+  RAW: n=74 start=0.0004 mid=0.0002 end=0.0001 delta=-0.0004 mean=0.0003 min=0.0001 max=0.0008
+  diff_end(CLIP-RAW)=-0.0000
+== grad_norm/gate_image_prefer ==
+  CLIP: n=77 start=0.0000 mid=0.0000 end=0.0000 delta=0.0000 mean=0.0000 min=0.0000 max=0.0000
+  RAW: n=74 start=0.0000 mid=0.0000 end=0.0000 delta=-0.0000 mean=0.0000 min=0.0000 max=0.0000
+  diff_end(CLIP-RAW)=-0.0000
+== grad_norm/query_v ==
+  CLIP: n=77 start=0.0000 mid=0.0001 end=0.0002 delta=0.0002 mean=0.0001 min=0.0000 max=0.0002
+  RAW: n=74 start=0.0000 mid=0.0001 end=0.0002 delta=0.0002 mean=0.0001 min=0.0000 max=0.0002
+  diff_end(CLIP-RAW)=0.0000
+== grad_norm/query_t ==
+  CLIP: n=77 start=0.0000 mid=0.0001 end=0.0002 delta=0.0002 mean=0.0001 min=0.0000 max=0.0002
+  RAW: n=74 start=0.0000 mid=0.0001 end=0.0002 delta=0.0002 mean=0.0001 min=0.0000 max=0.0003
+  diff_end(CLIP-RAW)=-0.0000
