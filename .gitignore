@@ -8,6 +8,7 @@ __pycache__/
 /data/sports/
 /plots/
 /src/src/
+/src/logs/
 
 # C extensions
 *.so

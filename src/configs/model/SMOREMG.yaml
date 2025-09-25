@@ -15,15 +15,3 @@ text_knn_k: [15]
 dropout_rate : [0.1]
 
 hyper_parameters: ["n_ui_layers", "image_knn_k", "text_knn_k", "reg_weight", "dropout_rate"]
-
-mg_enable: true
-mg_interval: 3     # τ，论文消融推荐 ~3
-mg_alpha: 0.5      # 要大于 beta
-mg_beta: 0.2       # 0<beta<alpha
-mg_verbose: true
-
-diag_spectrum: true
-diag_gate: true
-diag_grad: true
-
-mg_target_rel_step: 1e-3

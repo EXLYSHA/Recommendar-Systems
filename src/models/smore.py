@@ -124,6 +124,27 @@ class SMORE(GeneralRecommender):
         self.image_complex_weight = nn.Parameter(torch.randn(1, self.embedding_dim // 2 + 1, 2, dtype=torch.float32))
         self.text_complex_weight = nn.Parameter(torch.randn(1, self.embedding_dim // 2 + 1, 2, dtype=torch.float32))
         self.fusion_complex_weight = nn.Parameter(torch.randn(1, self.embedding_dim // 2 + 1, 2, dtype=torch.float32))
+
+        self.mg_enable: bool = bool(config.get('mg_enable', True))
+        self.mg_interval: int = int(config.get('mg_interval', 3))  # τ，论文推荐 ~3
+        self.mg_alpha: float = float(config.get('mg_alpha', 0.5))  # 0<beta<alpha
+        self.mg_beta: float = float(config.get('mg_beta', 0.2))
+        self.mg_verbose: bool = bool(config.get('mg_verbose', True))
+        self.global_step: int = 0  # 训练步计数器（供 MG interval 与诊断使用）
+
+        # 注入策略 & 频域正则
+        self.inject_mode = config.get('inject_mode', 'residual')  # 'mul' or 'residual'
+        self.inject_scale = float(config.get('inject_scale', 0.7))
+        self.spectral_weight_norm = bool(config.get('spectral_weight_norm', True))
+
+        # CL 温度（覆写默认的 0.2）
+        self.cl_temp = float(config.get('cl_temp', 0.2))
+
+        # 诊断输出选项（保留）
+        self.diag_spectrum = bool(config.get('diag_spectrum', True))
+        self.diag_gate = bool(config.get('diag_gate', True))
+        self.diag_grad = bool(config.get('diag_grad', True))
+
         
 
     def pre_epoch_processing(self):
@@ -188,22 +209,48 @@ class SMORE(GeneralRecommender):
     def spectrum_convolution(self, image_embeds, text_embeds):
         """
         Modality Denoising & Cross-Modality Fusion
+        同时返回频谱能量用于诊断（低/中/高频段能量占比）。
         """
-        image_fft = torch.fft.rfft(image_embeds, dim=1, norm='ortho')           
+        image_fft = torch.fft.rfft(image_embeds, dim=1, norm='ortho')
         text_fft = torch.fft.rfft(text_embeds, dim=1, norm='ortho')
 
-        image_complex_weight = torch.view_as_complex(self.image_complex_weight)   
-        text_complex_weight = torch.view_as_complex(self.text_complex_weight)
-        fusion_complex_weight = torch.view_as_complex(self.fusion_complex_weight)
+        image_complex_weight = torch.view_as_complex(self.image_complex_weight)
+        text_complex_weight  = torch.view_as_complex(self.text_complex_weight)
+        fusion_complex_weight= torch.view_as_complex(self.fusion_complex_weight)
 
-        #   Uni-modal Denoising
-        image_conv = torch.fft.irfft(image_fft * image_complex_weight, n=image_embeds.shape[1], dim=1, norm='ortho')    
+        if self.spectral_weight_norm:
+            # 单位幅值（相位保留），避免某些频带被任意放大/压扁
+            def unit_mag(wc):
+                mag = torch.abs(wc)
+                wc = wc / (mag + 1e-8)
+                return wc
+            image_complex_weight = unit_mag(image_complex_weight)
+            text_complex_weight  = unit_mag(text_complex_weight)
+            fusion_complex_weight= unit_mag(fusion_complex_weight)
+
+
+        # Uni-modal Denoising
+        image_conv = torch.fft.irfft(image_fft * image_complex_weight, n=image_embeds.shape[1], dim=1, norm='ortho')
         text_conv = torch.fft.irfft(text_fft * text_complex_weight, n=text_embeds.shape[1], dim=1, norm='ortho')
 
-        #   Cross-modality fusion
-        fusion_conv = torch.fft.irfft(text_fft * image_fft * fusion_complex_weight, n=text_embeds.shape[1], dim=1, norm='ortho') 
-        
+        # Cross-modality fusion
+        fusion_conv = torch.fft.irfft(text_fft * image_fft * fusion_complex_weight, n=text_embeds.shape[1], dim=1, norm='ortho')
+
+        # === 诊断：频带能量分布（幅度平方） ===
+        with torch.no_grad():
+            def band_energy(x_fft):  # x_fft: (N, F)
+                mag2 = (x_fft.real**2 + x_fft.imag**2).mean(dim=0)  # 频带平均能量
+                F = mag2.numel()
+                lo = mag2[:max(1, F//3)].sum()
+                mid = mag2[max(1, F//3):max(2, 2*F//3)].sum()
+                hi = mag2[max(2, 2*F//3):].sum()
+                total = lo + mid + hi + 1e-12
+                return (lo/total).item(), (mid/total).item(), (hi/total).item()
+            self._spec_energy_image = band_energy(image_fft)
+            self._spec_energy_text  = band_energy(text_fft)
+
         return image_conv, text_conv, fusion_conv
+
     
     def forward(self, adj, train=False):
         if self.v_feat is not None:
@@ -212,10 +259,18 @@ class SMORE(GeneralRecommender):
             text_feats = self.text_trs(self.text_embedding.weight)
 
         #   Spectrum Modality Fusion
+# Spectrum Modality Fusion
         image_conv, text_conv, fusion_conv = self.spectrum_convolution(image_feats, text_feats)
-        image_item_embeds = torch.multiply(self.item_id_embedding.weight, self.gate_v(image_conv))
-        text_item_embeds = torch.multiply(self.item_id_embedding.weight, self.gate_t(text_conv))
-        fusion_item_embeds = torch.multiply(self.item_id_embedding.weight, self.gate_f(fusion_conv))
+
+        if self.inject_mode == 'mul':
+            image_item_embeds = self.item_id_embedding.weight * self.gate_v(image_conv)
+            text_item_embeds  = self.item_id_embedding.weight * self.gate_t(text_conv)
+            fusion_item_embeds= self.item_id_embedding.weight * self.gate_f(fusion_conv)
+        else:  # 'residual'（推荐）
+            image_item_embeds = self.item_id_embedding.weight + self.inject_scale * self.gate_v(image_conv)
+            text_item_embeds  = self.item_id_embedding.weight + self.inject_scale * self.gate_t(text_conv)
+            fusion_item_embeds= self.item_id_embedding.weight + self.inject_scale * self.gate_f(fusion_conv)
+
 
         #   User-Item (Behavioral) View
         item_embeds = self.item_id_embedding.weight
@@ -286,6 +341,24 @@ class SMORE(GeneralRecommender):
         all_embeddings_users, all_embeddings_items = torch.split(all_embeds, [self.n_users, self.n_items], dim=0)
 
         if train:
+            if train and (self.mg_verbose or self.diag_gate):
+                with torch.no_grad():
+                    gv = torch.sigmoid(self.gate_v[0](image_conv))   # 取 Sigmoid 之前那层，再过 Sigmoid
+                    gt = torch.sigmoid(self.gate_t[0](text_conv))
+                    gf = torch.sigmoid(self.gate_f[0](fusion_conv))
+
+                    def stats(x):
+                        m = x.mean().item()
+                        s = x.std().item()
+                        sp = (x < 0.1).float().mean().item()  # 稀疏率：很小的门控比例
+                        return m, s, sp
+                    self._gate_act_stats = {
+                        "gV(m/s/sp%)": stats(gv),
+                        "gT(m/s/sp%)": stats(gt),
+                        "gF(m/s/sp%)": stats(gf),
+                    }
+
+
             return all_embeddings_users, all_embeddings_items, side_embeds, content_embeds
 
         return all_embeddings_users, all_embeddings_items
@@ -314,26 +387,29 @@ class SMORE(GeneralRecommender):
         return torch.mean(cl_loss)
 
     def calculate_loss(self, interaction):
-        users = interaction[0]
-        pos_items = interaction[1]
-        neg_items = interaction[2]
+        users, pos_items, neg_items = interaction
 
-        ua_embeddings, ia_embeddings, side_embeds, content_embeds = self.forward(
-            self.norm_adj, train=True)
+        ua_embeddings, ia_embeddings, side_embeds, content_embeds = self.forward(self.norm_adj, train=True)
+        self.global_step += 1
 
         u_g_embeddings = ua_embeddings[users]
         pos_i_g_embeddings = ia_embeddings[pos_items]
         neg_i_g_embeddings = ia_embeddings[neg_items]
 
-        batch_mf_loss, batch_emb_loss, batch_reg_loss = self.bpr_loss(u_g_embeddings, pos_i_g_embeddings,
-                                                                      neg_i_g_embeddings)
+        batch_mf_loss, batch_emb_loss, batch_reg_loss = self.bpr_loss(
+            u_g_embeddings, pos_i_g_embeddings, neg_i_g_embeddings
+        )
 
         side_embeds_users, side_embeds_items = torch.split(side_embeds, [self.n_users, self.n_items], dim=0)
         content_embeds_user, content_embeds_items = torch.split(content_embeds, [self.n_users, self.n_items], dim=0)
-        cl_loss = self.InfoNCE(side_embeds_items[pos_items], content_embeds_items[pos_items], 0.2) + self.InfoNCE(
-            side_embeds_users[users], content_embeds_user[users], 0.2)
+
+        cl_items = self.InfoNCE(side_embeds_items[pos_items], content_embeds_items[pos_items], self.cl_temp)
+        cl_users = self.InfoNCE(side_embeds_users[users], content_embeds_user[users], self.cl_temp)
+        cl_loss = cl_items + cl_users
+        self._cl_stats = {"cl_items": cl_items.item(), "cl_users": cl_users.item()}
 
         return batch_mf_loss + batch_emb_loss + batch_reg_loss + self.cl_loss * cl_loss
+
 
     def full_sort_predict(self, interaction):
         user = interaction[0]
@@ -344,3 +420,30 @@ class SMORE(GeneralRecommender):
         # dot with all item embedding to accelerate
         scores = torch.matmul(u_embeddings, restore_item_e.transpose(0, 1))
         return scores
+
+    @torch.no_grad()
+    def log_mm_diagnostics(self, optimizer=None):
+        if not (self.mg_verbose or self.diag_grad or self.diag_spectrum or self.diag_gate):
+            return
+
+        parts = []
+        if self.diag_spectrum and hasattr(self, "_spec_energy_image"):
+            img_lo, img_md, img_hi = self._spec_energy_image
+            txt_lo, txt_md, txt_hi = self._spec_energy_text
+            parts.append(f"[spec] image(lo/mid/hi)={img_lo:.2f}/{img_md:.2f}/{img_hi:.2f} "
+                         f"text={txt_lo:.2f}/{txt_md:.2f}/{txt_hi:.2f}")
+        if self.diag_gate and hasattr(self, "_gate_stats"):
+            parts.append("[gate] " + ", ".join(f"{k}={v:.3f}" for k,v in self._gate_stats.items()))
+        if hasattr(self, "_embed_norms"):
+            parts.append("[emb] " + ", ".join(f"{k}={v:.2f}" for k,v in self._embed_norms.items()))
+        if hasattr(self, "_cl_stats"):
+            parts.append("[cl] " + ", ".join(f"{k}={v:.4f}" for k,v in self._cl_stats.items()))
+        if hasattr(self, "_gate_act_stats"):
+            parts.append("[gate_act] " + " ".join(f"{k}={v[0]:.3f}/{v[1]:.3f}/{100*v[2]:.1f}%" 
+                                                for k, v in self._gate_act_stats.items()))
+
+        if optimizer is not None and len(optimizer.param_groups)>0:
+            lr = optimizer.param_groups[0].get("lr", float('nan'))
+            parts.append(f"[mg] step={self.global_step} τ={self.mg_interval} α={self.mg_alpha} β={self.mg_beta} lr={lr}")
+
+        print(" | ".join(parts))

@@ -119,6 +119,9 @@ class Trainer(AbstractTrainer):
                 self.logger.warning(f"TensorBoard unavailable ({e}); disabling TB logging.")
                 self.tb_enabled = False
         self._last_grad_groups = {}
+        self.mg_target_rel_step = float(self.config.get('mg_target_rel_step', 1e-3))
+        self.mg_alpha_max_scale = float(self.config.get('mg_alpha_max_scale', 20.0))
+
 
     def _build_optimizer(self):
         r"""Init the Optimizer
@@ -174,9 +177,18 @@ class Trainer(AbstractTrainer):
                     return p
             return n.split('.')[0]
 
+        def _zero_grad(opt):
+            try:
+                opt.zero_grad(set_to_none=True)
+            except TypeError:
+                opt.zero_grad()
+
         for batch_idx, interaction in enumerate(train_data):
-            self.optimizer.zero_grad()
-            second_inter = interaction.clone()
+            _zero_grad(self.optimizer)
+            try:
+                second_inter = interaction.clone()
+            except AttributeError:
+                second_inter = interaction
             losses = loss_func(interaction)
             
             if isinstance(losses, tuple):
@@ -189,27 +201,45 @@ class Trainer(AbstractTrainer):
             if self._check_nan(loss):
                 self.logger.info('Loss is nan at epoch: {}, batch index: {}. Exiting.'.format(epoch_idx, batch_idx))
                 return loss, torch.tensor(0.0)
-            
-            if self.mg and batch_idx % self.beta == 0:
-                first_loss = self.alpha1 * loss
-                first_loss.backward()
 
-                self.optimizer.step()
-                self.optimizer.zero_grad()
-                
-                losses = loss_func(second_inter)
-                if isinstance(losses, tuple):
-                    loss = sum(losses)
+            model_has_mirror = bool(getattr(self.model, 'mg_enable', False))
+            if not model_has_mirror:
+                if self.mg and batch_idx % self.beta == 0:
+                    first_loss = self.alpha1 * loss
+                    first_loss.backward()
+
+                    self.optimizer.step()
+                    self.optimizer.zero_grad()
+
+                    losses = loss_func(second_inter)
+                    if isinstance(losses, tuple):
+                        loss = sum(losses)
+                    else:
+                        loss = losses
+
+                    if self._check_nan(loss):
+                        self.logger.info('Loss is nan at epoch: {}, batch index: {}. Exiting.'.format(epoch_idx, batch_idx))
+                        return loss, torch.tensor(0.0)
+                    second_loss = -1 * self.alpha2 * loss
+                    second_loss.backward()
                 else:
-                    loss = losses
-                    
-                if self._check_nan(loss):
-                    self.logger.info('Loss is nan at epoch: {}, batch index: {}. Exiting.'.format(epoch_idx, batch_idx))
-                    return loss, torch.tensor(0.0)
-                second_loss = -1 * self.alpha2 * loss
-                second_loss.backward()
-            else:
-                loss.backward()
+                    loss.backward()
+
+                if self.tb_enabled:
+                    with torch.no_grad():
+                        for name, p in self.model.named_parameters():
+                            if p.grad is not None:
+                                gnorm = torch.norm(p.grad.detach()).item()
+                                group = _group_name(name)
+                                grad_groups.setdefault(group, []).append(gnorm)
+
+                if self.clip_grad_norm:
+                    clip_grad_norm_(self.model.parameters(), **self.clip_grad_norm)
+                self.optimizer.step()
+                loss_batches.append(loss.detach())
+                continue
+
+            loss.backward()
             
             # collect grads before step
             if self.tb_enabled:
@@ -224,6 +254,99 @@ class Trainer(AbstractTrainer):
                 clip_grad_norm_(self.model.parameters(), **self.clip_grad_norm)
             self.optimizer.step()
             loss_batches.append(loss.detach())
+
+            # optional diagnostics for multi-modal models such as SMORE
+            log_interval = int(getattr(self.model, 'mg_log_interval', 50))
+            if log_interval > 0:
+                step_id = int(getattr(self.model, 'global_step', 0))
+                if step_id and step_id % log_interval == 0 and hasattr(self.model, 'log_mm_diagnostics'):
+                    try:
+                        self.model.log_mm_diagnostics(self.optimizer)
+                    except Exception as diag_err:
+                        self.logger.warning(f"log_mm_diagnostics failed at step {step_id}: {diag_err}")
+
+            if getattr(self.model, 'mg_enable', False):
+                mg_interval = int(getattr(self.model, 'mg_interval', 0))
+                if mg_interval > 0:
+                    step_id = int(getattr(self.model, 'global_step', 0))
+                    if step_id % mg_interval == 0:
+                        lr = self.optimizer.param_groups[0].get('lr', 1.0)
+
+                        # ===== 1) 在“原点 θ”重新计算 g(θ)（用 second_inter 减少额外IO）=====
+                        _zero_grad(self.optimizer)
+                        mirror_input = second_inter
+                        loss_curr = loss_func(mirror_input)
+                        mirror_scalar_curr = sum(loss_curr) if isinstance(loss_curr, tuple) else loss_curr
+                        mirror_scalar_curr.backward()
+
+                        # 缓存参数和梯度
+                        params, grads = [], []
+                        for p in self.model.parameters():
+                            if p.requires_grad and p.grad is not None:
+                                params.append(p)
+                                grads.append(p.grad.detach().clone())
+
+                        # ===== 2) 计算 grad_rms / param_rms 并得到自适应 alpha_eff =====
+                        with torch.no_grad():
+                            if len(grads) == 0:
+                                alpha_eff = float(getattr(self.model, 'mg_alpha', 0.5))  # 兜底
+                            else:
+                                g_all = torch.cat([g.view(-1) for g in grads])
+                                grad_rms = float(g_all.norm() / (g_all.numel() ** 0.5))
+                                p_all = torch.cat([p.detach().view(-1) for p in params])
+                                param_rms = float(p_all.norm() / (p_all.numel() ** 0.5) + 1e-12)
+
+                                alpha_base = float(getattr(self.model, 'mg_alpha', 0.5))
+                                target_rel = float(getattr(self, 'mg_target_rel_step', 1e-3))
+                                target_step = target_rel * param_rms
+                                # 关键：alpha_eff = max(alpha_base, target_step / (lr * grad_rms + eps))
+                                alpha_eff = max(alpha_base, target_step / (lr * grad_rms + 1e-12))
+                                max_scale = float(getattr(self, 'mg_alpha_max_scale', 20.0))
+                                alpha_eff = min(alpha_eff, alpha_base * max_scale)
+
+                            # 把 alpha_eff 暴露给 model（便于日志）
+                            try:
+                                setattr(self.model, '_alpha_eff', float(alpha_eff))
+                            except Exception:
+                                pass
+
+                        # ===== 3) 去镜像点 θ' = θ - alpha_eff * lr * g(θ) =====
+                        with torch.no_grad():
+                            for p, g in zip(params, grads):
+                                p.add_(- alpha_eff * lr * g)
+
+                        # ===== 4) 在镜像点计算 g(θ')，梯度取反并按 beta 缩放 =====
+                        _zero_grad(self.optimizer)
+                        loss_mirror = loss_func(mirror_input)
+                        mirror_scalar = sum(loss_mirror) if isinstance(loss_mirror, tuple) else loss_mirror
+                        mirror_scalar.backward()
+
+                        with torch.no_grad():
+                            for p in self.model.parameters():
+                                if p.requires_grad and p.grad is not None:
+                                    p.grad.mul_(- float(getattr(self.model, 'mg_beta', 0.2)))
+
+                        # ===== 5) 还原回原点 θ 并用“反号镜像梯度”更新 =====
+                        with torch.no_grad():
+                            for p, g in zip(params, grads):
+                                p.add_(+ alpha_eff * lr * g)
+
+                        self.optimizer.step()
+                        _zero_grad(self.optimizer)
+
+                        # ===== 6) 日志（可选）=====
+                        if getattr(self.model, 'mg_verbose', False):
+                            with torch.no_grad():
+                                def _safe_norm(x): return float(x.norm().item()) if x is not None else float('nan')
+                                g_user = next((p.grad for n, p in self.model.named_parameters()
+                                            if n.startswith('user_embedding.weight')), None)
+                                g_item = next((p.grad for n, p in self.model.named_parameters()
+                                            if n.startswith('item_id_embedding.weight')), None)
+                                mv = float(mirror_scalar.item()) if torch.is_tensor(mirror_scalar) else float(mirror_scalar)
+                                ae = float(getattr(self.model, '_alpha_eff', float(getattr(self.model, 'mg_alpha', 0.5))))
+                                print(f"[MG] step={step_id} mirror_loss={mv:.4f} α_eff={ae:.3g} "
+                                    f"||g_user||={_safe_norm(g_user):.4f} ||g_item||={_safe_norm(g_item):.4f}")
+
             # for test
             #if batch_idx == 0:
             #    break
